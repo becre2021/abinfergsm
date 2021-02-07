@@ -169,48 +169,7 @@ class spt_manager_train(object):
         return assigned_spt, ratio
 
     
-    
-    def calc_sptratio_given_XY(self, weight_param, mu_param, std_param, X, Y, alpha=None  , intrain = True):
-        if torch.is_tensor(weight_param):
-            weight_list = weight_param.cpu().data.numpy()
-        if torch.is_tensor(mu_param):
-            mu_list = mu_param.cpu().data.numpy()
-        if torch.is_tensor(std_param):
-            std_list = std_param.cpu().data.numpy()
-
-        if alpha == []:
-            ratio = np.ones(self.num_Q)/self.num_Q
-        else:
-            num_data, dim = X.shape
-            num_sample = int(num_data * self.rate)
-            sub_sampled_tau,idx = self.get_batch_taus(X, num_data,num_sample,random_sample = True)        
-            alpha_idx = alpha[idx]
-            
-            out1 = K_SM_Components(mu_list, std_list, 2*sub_sampled_tau)
-            out2 = -2 * K_SM_Components(mu_list, std_list, sub_sampled_tau) ** 2
-            g_mat_list = np.ones_like(out1) + out1 + out2
-            g_mat_list = np.sqrt(g_mat_list)
-
-            ratio = []
-            for ith_weight, ith_g_mat in zip(weight_list, g_mat_list):
-                weighted_secondorder_term = (alpha_idx.T).dot(ith_g_mat.dot(alpha_idx)) + 1e-16
-                ith_ratio = np.sqrt(  .5*np.clip(weighted_secondorder_term,a_min = 1e-16, a_max= None) )
-                ratio.append(ith_weight * ith_ratio)
-
-            ratio = np.asarray(ratio).squeeze()
-            ratio = np.clip(ratio, a_min=lower_bound_weight, a_max=upper_bound_weight)
-            ratio = softmax(np.log(ratio / self.temperature)).squeeze()
-                    
-        assigned_spt = self.float_to_integer(ratio)
-        assigned_spt += self.num_min_pt
-        
-        if intrain == True:
-            self.call_num +=1            
-        else:
-            pass
-        assert (assigned_spt.sum() == self.total_spt)
-        return assigned_spt, ratio
-
+   
 
 
 
