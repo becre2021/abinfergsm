@@ -56,9 +56,10 @@ def _load_collection_real(filename,cuda_option):
     else :
         raise ValueError('NOT found dataset')
 
+        
+        
 
 def _load_collection_syn(filename,cuda_option):
-
     print('#loaded collection#')
     device = torch.device('cuda:0' if cuda_option else 'cpu')
 
@@ -87,9 +88,6 @@ def _load_collection_syn(filename,cuda_option):
                torch.from_numpy(y_train).to(device),torch.from_numpy(y_test).to(device)
 
 
-#     elif filename in ['SM_Q2_exp1','SM_Q4_exp1_equal','SM_Q4_exp1_unequal','SM_Q5_exp1_equal','SM_Q5_exp1_unequal','SM_Q10_exp1_unequal_v3',
-#                       'SM_Q5_exp1_equal_v2','SM_Q5_exp1_unequal_v2','SM_Q3_exp1_unequal_v3','SM_Q5_exp1_unequal_v3',
-#                       'SM_Q7_exp1_unequal_v3','SM_Q9_exp1_unequal_v3'] :
     elif filename in ['SM_Q5_exp1_unequal_v3','SM_Q2_exp1'] :
         #Dataset = sio.loadmat('./../datasets/synthetic/' + filename + '.mat')
         Dataset = sio.loadmat('./datasets/synthetic/' + filename + '.mat')        
@@ -98,60 +96,12 @@ def _load_collection_syn(filename,cuda_option):
         return torch.from_numpy(x_train).to(device),torch.from_numpy(x_test).to(device),torch.from_numpy(x_full).to(device),\
                torch.from_numpy(y_train).to(device),torch.from_numpy(y_test).to(device),torch.from_numpy(y_full).to(device),Dataset
 
-    elif filename in ['SM_Q3_exp1_unequal_v3_2d',
-                      'SM_Q4_exp1_unequal_v3_2d','SM_Q4_exp1_unequal_v4_2d','SM_Q4_exp1_unequal_v5_2d','SM_Q4_exp1_unequal_v6_2d',
-                      'SM_Q4_exp1_unequal_v7_2d', 'SM_Q4_exp1_unequal_v8_2d',
-                      'SM_Q3_exp1_unequal_v10_2d','SM_Q4_exp1_unequal_v10_2d','SM_Q4_exp1_equal_v10_2d',
-                      'SM_Q5_exp1_unequal_v3_2d','SM_Q5_exp1_unequal_v4_2d',
-                      'SM_Q2_exp1_equal_v10_2d']:
-        Dataset = sio.loadmat('./datasets/synthetic/' + filename + '.mat')
-        print(Dataset.keys())
-        Dataset0 = [Dataset['w'],Dataset['m'],Dataset['v']]
-        x_train, x_test, y_train, y_test , x_full, y_full = Dataset['x_train'], Dataset['x_test'],Dataset['y_train'], Dataset['y_test'],Dataset['x_full'], Dataset['y_full']
-        x_train, x_test, y_train, y_test, x_full,y_full = np.float64(x_train), np.float64(x_test) , np.float64(y_train), np.float64(y_test), np.float64(x_full), np.float64(y_full)
-        return torch.from_numpy(x_train).to(device),torch.from_numpy(x_test).to(device),torch.from_numpy(x_full).to(device),\
-               torch.from_numpy(y_train).to(device),torch.from_numpy(y_test).to(device),torch.from_numpy(y_full).to(device),Dataset0
 
     else :
         raise ValueError('NOT found dataset')
 
 
 
-from .bbq_datasets import mauna_loa,airfoil_noise,airline_passengers,concrete,textures_2D
-bbq_root_dir = './datasets' + '/bbq_datasets/'
-def _load_collection_bbq_data(filename ,cuda_option):
-    device = torch.device('cuda:0' if cuda_option else 'cpu')
-
-    print('loaded_' + filename)
-    if filename == "co2":
-        train_data, test_data = mauna_loa(rootDir=bbq_root_dir)
-    elif filename == "airline":
-        train_data, test_data = airline_passengers(rootDir=bbq_root_dir)
-    elif filename == "Noise":
-        train_data, test_data = airfoil_noise(rootDir=bbq_root_dir)
-    elif filename == "Concrete":
-        train_data, test_data = concrete(rootDir=bbq_root_dir)
-    elif filename == "rubber" or filename == "pores"  or filename == "tread":
-        train_data, test_data = textures_2D(rootDir=bbq_root_dir, texture_name=filename)
-        #train_data, test_data = textures_2D(rootDir=bbq_root_dir, texture_name=filename,raw_data = True)
-
-    X_trn = train_data[:, :-1]
-    Y_trn = train_data[:, [-1]]
-    X_tst = test_data[:, :-1]
-    Y_tst = test_data[:, [-1]]
-
-    ########################################
-    y_mean = np.vstack([Y_trn,Y_tst]).mean()
-    y_std = np.vstack([Y_trn,Y_tst]).std()
-    Y_trn = (Y_trn-y_mean)/y_std
-    Y_tst = (Y_tst-y_mean)/y_std
-    ########################################
-
-    x_train, x_test = np.float64(X_trn), np.float64(X_tst)
-    y_train, y_test = np.float64(Y_trn), np.float64(Y_tst)
-    
-    return torch.from_numpy(x_train).to(device), torch.from_numpy(x_test[::2]).to(device), torch.from_numpy(x_test[1::2]).to(device), \
-           torch.from_numpy(y_train).to(device), torch.from_numpy(y_test[::2]).to(device), torch.from_numpy(y_test[1::2]).to(device)
 
 
 filepath_dir = './datasets/uci_datasets/'
@@ -187,6 +137,8 @@ def _load_collection_uci_data(filename,random_seed=1111, numtotal = 200000, cuda
     
 
 
+    
+    
 def _load_collection_uci_data_v2(filename,random_seed=1, numtotal = 200000, cuda_option = None , normalize = False ,numrep = 1):
     data_dir = filepath_dir  + filename + '/'
     x_full = np.load(data_dir + 'X.npy')
