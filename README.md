@@ -7,7 +7,7 @@ We provide the implementation and experiment results code for the paper Efficien
 
 * main_exp1 in section 5-1.ipynb : kernel approximation experiemnt to validate sampling strategy (expeiriment section 5.1)
 * main_exp2-1 in section 5-2.ipynb, main_exp2-2 in section 5-2.ipynb : kernel approximation in training (expeiriment section 5.2)
-* main_ablationstudy_exp.py. run_ablation_exp.sh : ablation study (experiment section 5.3)
+* main_ablationstudy_exp.py, run_ablation_exp.sh : ablation study (experiment section 5.3)
 * main_uci_regression.py, main_uci_regression_batch.py : a large-scale and hight-dimensional uci regression (experiment section 5.4)
 
 
@@ -22,7 +22,7 @@ We provide the implementation and experiment results code for the paper Efficien
 
 ## Dataset
 
-* [UCI Wilson dataset][https://drive.google.com/file/d/0BxWe_IuTnMFcYXhxdUNwRHBKTlU/view]
+* [UCI Wilson dataset](https://drive.google.com/file/d/0BxWe_IuTnMFcYXhxdUNwRHBKTlU/view)
 
 
 
