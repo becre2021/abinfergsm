@@ -10,21 +10,19 @@ import pickle
 import matplotlib.pyplot as plt
 import datetime
 
-from datasets.dataset import _load_collection_uci_data, _load_collection_uci_data_batch,  _traintestsplit, _load_collection_bbq_data
+from datasets.dataset import _load_collection_uci_data, _load_collection_uci_data_batch,  _traintestsplit
 from datasets.dataset_wilson_uci import _load_ucidataset_wilson
-from utility.eval_metric import _evaluate_metric
 from models_utility.construct_models import _initialize_SMkernelhyp_uci,_initialize_SMkernelhyp_uci_wilson,_make_gpmodel_v2
 from models_utility.personalized_adam import Adam_variation
+from utility.eval_metric import _evaluate_metric
 
-device = True
 
 print(torch.__version__)
 print(torch.version.cuda)
 
-
+device = True
 save_format = '.pickle'
 pickle_savepath = './jupyters/result_UCIregression/'
-# save_exp_path = './exp' + '/'
 if not os.path.exists(pickle_savepath):
     os.makedirs(pickle_savepath)
 
@@ -177,22 +175,18 @@ for ith_Q in comparison_variable_numQ_list:
                 best_loss = np.inf
                 best_val = np.inf
                 # initialization over 5 times
-                num_init_rep = 3
+                num_init_rep = 5
                 for ith_try in range(num_init_rep):
-                    #setting_dict = _initialize_SMkernelhyp_uci_wilson(x_train, y_train, setting_dict,args.randomseed + ith_try)        #kinnm8   o  
-                    setting_dict = _initialize_SMkernelhyp_uci(x_train, y_train, setting_dict,args.randomseed + ith_try)                 #kinnm8   x                                      
-                    temp_model, optimizable_param, temp_optimizer  = _make_gpmodel_v2(model_name=ith_model_name, setting_dict=setting_dict, device=device , x_train =x_train,y_train = y_train)
-                  
+                    setting_dict = _initialize_SMkernelhyp_uci(x_train, y_train, setting_dict,args.randomseed + ith_try)                                         
+                    temp_model, optimizable_param, temp_optimizer  = _make_gpmodel_v2(model_name=ith_model_name, setting_dict=setting_dict, device=device , x_train =x_train,y_train = y_train)                  
                     try:
                         temp_model.train()
                         for i in range(100 + 1):
                             temp_optimizer.zero_grad()
-                            #losstotal = temp_model.compute_loss(batch_x=x_train, batch_y=y_train,kl_option=setting_dict['kl_option'])
                             losstotal = temp_model.compute_loss(batch_x=x_train[ith_try::2], batch_y=y_train[ith_try::2],kl_option=setting_dict['kl_option'])
                             losstotal.backward()
                             temp_optimizer.step()
                             torch.cuda.empty_cache()
-                            #print('losstotal {}'.format(losstotal.cpu().data.numpy()))
                         print('initialziation data shape {0}{1}'.format(x_train[ith_try::num_init_rep].shape,y_train[ith_try::num_init_rep].shape))                          
                         print('%d init loss: %.4f \n' % (ith_try, losstotal.cpu().data.numpy()))                                
                     except:
@@ -255,19 +249,15 @@ for ith_Q in comparison_variable_numQ_list:
                         print('%d th loss: %.3f, val mse : %.3f, exact val mse : %.3f, val mnll : %.3f, exact val mnll : %.3f' % (i, ith_loss.cpu().data.numpy(), ith_rmse, ith_ermse, ith_mnll,ith_emnll))                        
 
 
-                    torch.cuda.empty_cache()
-#                     if best_val > ith_ermse:
-#                         best_val = ith_ermse
-#                         saved_param = save_model_param(temp_model)
-#                         print('parameters saved at {} iteration'.format(i))
-                        
+                    torch.cuda.empty_cache()                        
                     if best_val > ith_rmse:
                         best_val = ith_rmse
                         saved_param = save_model_param(temp_model)
                         print('parameters saved at {} iteration'.format(i))
 
                 torch.cuda.empty_cache()
-                #### test evalutation
+                
+                #### test evalutation                
                 ith_model_saved = load_model_param(temp_model,saved_param)    
                 ith_model_saved.eval()
                 if ith_model_name in ['rff', 'weight_reg', 'weight_reg_nat', 'equal_reg', 'equal_reg_nat']:

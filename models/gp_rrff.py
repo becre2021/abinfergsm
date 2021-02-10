@@ -104,7 +104,6 @@ class ssgpr_rep_sm(nn.Module):
     
 
 
-    #def _assign_num_spectralpt(self,x,istau = None,usepairwise = None):
     def _assign_num_spectralpt(self,x,intrain = True):        
         if self.sampling_option == 'weight':                
             assigned_spt, ratio =  self.spt_manager.calc_sptratio_given_X( weight_param = self.weight.transform(),
@@ -155,7 +154,7 @@ class ssgpr_rep_sm(nn.Module):
 
         self._assign_num_spectralpt(x,intrain)                       
         num_samplept_list = self.num_samplept_list_at 
-        ##
+
         for i_th in range(self.weight.numel()):
             ith_allocated_sample = num_samplept_list[i_th]
             sampled_spectal_pt = self._sampling_gaussian(mu = self.mu.transform()[i_th],std = self.std.transform()[i_th],num_sample = ith_allocated_sample)  # self.num_sample x dim

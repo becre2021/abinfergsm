@@ -78,7 +78,6 @@ class ssgpr_rep_sm_reg(ssgpr_rep_sm):
     
 
 
-    #def _assign_num_spectralpt(self,x,istau = None,usepairwise = None):
     def _assign_num_spectralpt(self,x,intrain = True):        
         if self.sampling_option == 'weight':                
             assigned_spt, ratio =  self.spt_manager.calc_sptratio_given_X( weight_param = self.weight.transform(),
@@ -132,12 +131,8 @@ class ssgpr_rep_sm_reg(ssgpr_rep_sm):
             Phi = self._compute_sm_basis(batch_x, intrain = True)
             Approximate_gram = self._compute_gram_approximate(Phi)
             L = cholesky(Approximate_gram)
-
-            # revision            
             Linv_PhiT = triangular_solve(Phi.t(), L ,upper=False)[0]           
             Linv_PhiT_y = Linv_PhiT.matmul(batch_y) 
-            self.alpha = ( (1/self.likelihood.variance.transform()**2)*(batch_y - (Linv_PhiT.t()).matmul(Linv_PhiT_y)) ).detach().cpu().data.numpy()
-            
             
             loss += (0.5 / self.likelihood.variance.transform()**2) * (batch_y.pow(2).sum() - Linv_PhiT_y.pow(2).sum())
             loss += lt_log_determinant(L)
@@ -153,7 +148,6 @@ class ssgpr_rep_sm_reg(ssgpr_rep_sm):
             return (1 / self.num_batch) * loss
         else:
             kl_term = self._kl_div_qp()
-            #return (1 / self.num_batch) * loss ,   kl_term  
             return (1 / self.num_batch) * loss + kl_term  
     
     

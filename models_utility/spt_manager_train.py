@@ -102,6 +102,14 @@ class spt_manager_train(object):
         return (self.h_taupair(mu, std, i_taus, j_taus, ij_taus_sum, ij_taus_minus)).sum(axis=0)
 
     
+    def get_batch_taus(self,X,num_data,num_sample,random_sample = True):
+        if random_sample:        
+            idx = np.random.choice(num_data, num_sample, replace=False)       
+        else:
+            idx = np.arange(self.call_num*num_sample,(self.call_num+1)*num_sample) % num_data        
+        return self._get_subtauset(X[idx]),idx
+
+    
     
     def float_to_integer(self, ratio):
         num_minimum_total_pt = self.num_Q * self.num_min_pt
@@ -127,12 +135,6 @@ class spt_manager_train(object):
 
         return assigned_spt
 
-    def get_batch_taus(self,X,num_data,num_sample,random_sample = True):
-        if random_sample:        
-            idx = np.random.choice(num_data, num_sample, replace=False)       
-        else:
-            idx = np.arange(self.call_num*num_sample,(self.call_num+1)*num_sample) % num_data        
-        return self._get_subtauset(X[idx]),idx
 
     
     def calc_sptratio_given_X(self, weight_param, mu_param, std_param, X , intrain = True):

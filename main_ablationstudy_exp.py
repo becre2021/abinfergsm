@@ -1,4 +1,4 @@
-# train : 80% , validation :10%,  test : 10%
+# train : 80% , test : 20%
 import copy
 import os
 import argparse
@@ -10,24 +10,20 @@ import pickle
 import matplotlib.pyplot as plt
 import datetime
 
-from datasets.dataset import _load_collection_uci_data, _load_collection_bbq_data
+from datasets.dataset import _load_collection_uci_data
 from datasets.dataset_wilson_uci import _load_ucidataset_wilson
-
-from utility.eval_metric import _evaluate_metric
 from models_utility.construct_models import _initialize_SMkernelhyp_uci,_initialize_SMkernelhyp_uci_wilson, _make_gpmodel,_make_gpmodel_v2
 from models_utility.personalized_adam import Adam_variation
+from utility.eval_metric import _evaluate_metric
 
 device = True
-
 print(torch.__version__)
 print(torch.version.cuda)
 
-
 save_format = '.pickle'
-#pickle_savepath = './jupyters/result_pickle/'
 pickle_savepath = './jupyters/result_pickle_ablation/'
-# save_exp_path = './exp' + '/'
 if not os.path.exists(pickle_savepath):
+    os.makedirs(pickle_savepath)    
 
 
 

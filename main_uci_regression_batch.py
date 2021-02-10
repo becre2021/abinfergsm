@@ -10,23 +10,21 @@ import pickle
 import matplotlib.pyplot as plt
 import datetime
 
-from datasets.dataset import _load_collection_uci_data, _load_collection_uci_data_batch,  _traintestsplit, _load_collection_bbq_data
+from datasets.dataset import _load_collection_uci_data, _load_collection_uci_data_batch,  _traintestsplit
 from datasets.dataset_wilson_uci import _load_ucidataset_wilson,_load_ucidataset_wilson_batch
-from utility.eval_metric import _evaluate_metric
 from models_utility.construct_models import _initialize_SMkernelhyp_uci,_initialize_SMkernelhyp_uci_wilson,_make_gpmodel_v2
 from models_utility.personalized_adam import Adam_variation
+from utility.eval_metric import _evaluate_metric
 
 
 
 device = True
-
 print(torch.__version__)
 print(torch.version.cuda)
 
 
 save_format = '.pickle'
 pickle_savepath = './jupyters/result_UCIregressionBatch/'
-# save_exp_path = './exp' + '/'
 if not os.path.exists(pickle_savepath):
     os.makedirs(pickle_savepath)
 
@@ -174,13 +172,12 @@ for ith_Q in comparison_variable_numQ_list:
                 
                 best_loss = np.inf
                 best_val = np.inf
-                # initialization over 3 times due to memory issue
-                num_init_rep = 3
+                # initialization over 5 times due to memory issue
+                num_init_rep = 5
                 for ith_try in range(num_init_rep):
-                    #setting_dict = _initialize_SMkernelhyp_uci_wilson(x_train, y_train, setting_dict,args.randomseed + ith_try)    #wilson     
-                    setting_dict = _initialize_SMkernelhyp_uci(x_train, y_train, setting_dict,args.randomseed + ith_try)        #manually       
+                    setting_dict = _initialize_SMkernelhyp_uci(x_train, y_train, setting_dict,args.randomseed + ith_try)          
                     
-                    temp_model, optimizable_param, temp_optimizer  = _make_gpmodel_v2(model_name=ith_model_name, setting_dict=setting_dict, device=device , x_train =x_train,y_train = y_train)                  
+                    temp_model, optimizable_param, temp_optimizer  = _make_gpmodel_v2(model_name=ith_model_name, setting_dict=setting_dict, device=device , x_train =x_train,y_train = y_train)                
                     try:
                         temp_model.train()
                         for i in range(100 + 1):
