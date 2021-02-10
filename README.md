@@ -14,9 +14,9 @@ We provide the implementation and experiment results for the paper Efficient App
 ### Experiments
 
 * main_exp1 in section 5-1.ipynb : kernel approximation experiemnt to validate sampling strategy (expeiriment section 5.1)
-* main_exp2-1 in section 5-2.ipynb, main_exp2-2 in section 5-2.ipynb : kernel approximation in training (expeiriment section 5.2)
+* main_exp2-1 in section 5-2.ipynb, main_exp2-2 in section 5-2.ipynb : kernel approximation in training (experiment section 5.2)
 * main_ablationstudy_exp.py : ablation study (experiment section 5.3)
-* main_uci_regression.py, main_uci_regression_batch.py : a large-scale and hight-dimensional uci regression (experiment section 5.4)
+* main_uci_regression.py, main_uci_regression_batch.py : a large-scale and high-dimensional UCI dataset regression (experiment section 5.4)
 * supplementary SM kernel Recovery by SVSS.ipynb : SM kernel Recovery conducted in [experiment section 5.1](https://arxiv.org/pdf/1910.13565.pdf)
 
 
