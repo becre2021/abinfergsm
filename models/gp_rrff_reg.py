@@ -89,12 +89,6 @@ class ssgpr_rep_sm_reg(ssgpr_rep_sm):
                                                                            std_param = self.std.transform(),
                                                                            X = x,
                                                                            intrain = intrain)
-                  
-#             assigned_spt, ratio =  self.spt_manager.calc_sptratio_given_X_v2( weight_param = self.weight.transform(),
-#                                                                               mu_param = self.mu.transform(),
-#                                                                               std_param = self.std.transform(),
-#                                                                               X = x,
-#                                                                               intrain = intrain)    
             outs = list(assigned_spt)
 
         elif self.sampling_option == 'naive_weight':
