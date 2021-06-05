@@ -6,6 +6,7 @@ import math
 from itertools import combinations
 from scipy.special import softmax
 import numpy as np
+import torch.nn.functional as F
 
 pi2 = 2 * math.pi
 upper_bound_weight = 1e5
@@ -20,7 +21,6 @@ def K_SM_Components(mu_list, std_list, x1, x2=None):
     out = []
     for ith_mu, ith_std in zip(mu_list, std_list):
         x1_, x2_ = pi2 * (x1 * ith_std), pi2 * (x2 * ith_std)
-        # sq_dist = -0.5*( -2 * x1_.matmul(x2_.t()) + (x1_.pow(2).sum(-1, keepdim=True) + x2_.pow(2).sum(-1, keepdim=True).t()))
         sq_dist = -0.5 * (-2 * np.matmul(x1_, x2_.T) + ((x1_ ** 2).sum(-1, keepdims=True) + (x2_ ** 2).sum(-1, keepdims=True).T))
         exp_term = np.exp(sq_dist)
         x11_, x22_ = pi2 * np.matmul(x1, ith_mu.reshape(-1, 1)), pi2 * np.matmul(x2, ith_mu.reshape(-1, 1))
@@ -33,10 +33,8 @@ def K_SM_Components(mu_list, std_list, x1, x2=None):
     
     
 class spt_manager_train(object):
-    def __init__(self, spt, num_Q, rate=0.01, num_min_pt=2):            
-        self.num_min_pt = int(spt / 2) + 1 if spt<=3 else int(spt / 2)            
-        #self.num_min_pt = num_min_pt    
-        
+    def __init__(self, spt, num_Q, rate=0.01, num_min_pt=1):            
+        self.num_min_pt = num_min_pt            
         self.spt = spt
         self.num_Q = num_Q
         self.total_spt = self.spt * self.num_Q        
@@ -47,18 +45,26 @@ class spt_manager_train(object):
         self.num_offdiag = None
         self.index_offdiag = None
         self.num_sample = None
-        self.temperature = 1    
+        self.temperature = 1.            
         self.call_num = 0
+        
+        self.total_trainiter = 4000
+        self.assigned_spt = np.array([int(self.spt) for i in range(self.num_Q)])
+        self.ratio = self.base_ratio = (self.spt/self.total_spt)*np.ones(self.num_Q)       
+        print('total spt:{}, spt:{}, Q:{} in spt manager'.format(self.total_spt,self.spt,self.num_Q))
+        
+        # gurantee the minimun number of spectral points >= M/2Q       
+        # 0.5*base_p + 0.5*optimal_p        
+        self.adaptive_alpha = 0.5  
+        self.weight_reflect = True
+        self.nominator_list = None
+        
         return
 
-    def _set_num_spectralpt(self, spt , num_min_pt=2 , intrain = True):
-        if intrain : 
-            self.num_min_pt = int(spt / 2) + 1 if spt<=3 else int(spt / 2)    
-        else:
-            self.num_min_pt = num_min_pt
-        
+    def _set_num_spectralpt(self, spt , num_min_pt=1 , intrain = True):
+        self.num_min_pt = num_min_pt                        
         self.spt = spt
-        assert spt > self.num_min_pt
+        assert spt >= self.num_min_pt
         self.total_spt = self.spt * self.num_Q
         return
 
@@ -111,6 +117,8 @@ class spt_manager_train(object):
 
     
     
+
+
     def float_to_integer(self, ratio):
         num_minimum_total_pt = self.num_Q * self.num_min_pt
         num_allocated_total_pt = self.total_spt - num_minimum_total_pt
@@ -124,11 +132,11 @@ class spt_manager_train(object):
         # equal to M= Q x spt
         if assigned_spt.sum() > num_allocated_total_pt:
             delta_num = assigned_spt.sum() - num_allocated_total_pt
-            selected_idx = np.asarray(list(idx_plus) + list(idx_equa) + list(idx_mius))
+            selected_idx = np.argsort(-ratio)                       
             assigned_spt[selected_idx[:delta_num]] += -1
         elif assigned_spt.sum() < num_allocated_total_pt:
             delta_num = num_allocated_total_pt - assigned_spt.sum()
-            selected_idx = np.asarray(list(idx_mius) + list(idx_equa) + list(idx_plus))
+            selected_idx = np.argsort(ratio)            
             assigned_spt[selected_idx[:delta_num]] += 1
         else:
             pass
@@ -136,6 +144,7 @@ class spt_manager_train(object):
         return assigned_spt
 
 
+    
     
     def calc_sptratio_given_X(self, weight_param, mu_param, std_param, X , intrain = True):
         if torch.is_tensor(weight_param):
@@ -147,17 +156,57 @@ class spt_manager_train(object):
 
         num_data, dim = X.shape
         num_sample = int(num_data * self.rate)
-        sub_sampled_tau,idx = self.get_batch_taus(X, num_data,num_sample,random_sample = False)        
+
         
-        nominator_list = []
-        for ith_weight, ith_mu, ith_std in zip(weight_param, mu_param, std_param):
-            variance_sum = self.sum_g_tau(ith_mu, ith_std, inputs=sub_sampled_tau)
-            covariance_sum = 0.0
-            nominator_list.append(ith_weight * np.sqrt(variance_sum + covariance_sum))
+        adaptive_alpha = self.adaptive_alpha                         
+        if intrain:
+            
+            if self.call_num % 1 == 0: 
+                sub_sampled_tau,idx = self.get_batch_taus(X, num_data,num_sample,random_sample = False)                            
+                nominator_list = []
+                for ith_weight, ith_mu, ith_std in zip(weight_param, mu_param, std_param):
+                    variance_sum = self.sum_g_tau(ith_mu, ith_std, inputs=sub_sampled_tau) 
+                    covariance_sum = 0.0
+                    if self.weight_reflect :
+                        # in paper  
+                        nominator_list.append( 1/(1+ np.exp(-ith_weight/np.median( weight_param.squeeze() )))  * np.sqrt(variance_sum + covariance_sum))                        
+                    else:
+                        nominator_list.append( 1*np.sqrt(variance_sum + covariance_sum))
+                self.nominator_list = nominator_list 
+            else:
+                pass
+            
+            ratio = np.clip(self.nominator_list, a_min=lower_bound_weight, a_max=upper_bound_weight)
+            ratio = softmax(np.log(ratio / self.temperature)).squeeze()
+            ratio = (1 - adaptive_alpha)*self.base_ratio + adaptive_alpha*ratio
+            ratio =  np.clip( ratio , a_min = 1e-16, a_max = 1-1e-8)
+                        
+            assigned_spt = self.float_to_integer(ratio)
+            assigned_spt += self.num_min_pt            
+            self.assigned_spt = assigned_spt       
+            self.ratio =ratio
+            self.call_num +=1          
+            
+                
+        else:
+            ratio = np.clip(self.nominator_list, a_min=lower_bound_weight, a_max=upper_bound_weight)    
+            ratio = softmax(np.log(ratio / self.temperature)).squeeze()
+            ratio = (1 - adaptive_alpha)*self.base_ratio + adaptive_alpha*ratio
+            ratio =  np.clip( ratio , a_min = 1e-16, a_max = 1-1e-8)
+                            
+            assigned_spt = self.float_to_integer(ratio)
+            assigned_spt += self.num_min_pt            
+            self.assigned_spt = assigned_spt       
+            self.ratio =ratio
+            
+        assert (self.assigned_spt.sum() == self.total_spt)
+        return self.assigned_spt, self.ratio        
+    
 
-        ratio = np.clip(nominator_list, a_min=lower_bound_weight, a_max=upper_bound_weight)
-        ratio = softmax(np.log(ratio / self.temperature)).squeeze()
-
+    
+     
+    def calc_sptratio_naive(self, weight_param_log, intrain = True):
+        ratio = softmax(weight_param_log.cpu().data.numpy(), axis=0).squeeze()
         # float to integers
         assigned_spt = self.float_to_integer(ratio)
         assigned_spt += self.num_min_pt
@@ -169,11 +218,7 @@ class spt_manager_train(object):
         
         assert (assigned_spt.sum() == self.total_spt)
         return assigned_spt, ratio
-
     
-   
-
-
 
 
 

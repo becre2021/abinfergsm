@@ -11,7 +11,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-torch.set_default_tensor_type(torch.DoubleTensor)
+#torch.set_default_tensor_type(torch.DoubleTensor)
+torch.set_default_tensor_type(torch.FloatTensor)
+
+
 zitter = 1e-8
 class gpmodel(nn.Module):
     def __init__(self, kernel, likelihood , device ):

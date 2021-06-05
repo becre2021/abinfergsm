@@ -9,7 +9,8 @@ import torch
 from torch import nn
 from torch.autograd import Variable
 
-torch.set_default_tensor_type(torch.DoubleTensor)
+#torch.set_default_tensor_type(torch.DoubleTensor)
+torch.set_default_tensor_type(torch.FloatTensor)
 
 zitter = 1e-8
 class ssgpr_sm(nn.Module):    
@@ -43,7 +44,7 @@ class ssgpr_sm(nn.Module):
 
     def _set_up_param(self, param_dict):
         self.input_dim = param_dict['input_dim']
-        self.num_Q = param_dict['Num_Q']
+        self.num_Q = param_dict['num_Q']
         self.noise = param_dict['noise_err']
         self.lr_hyp = param_dict['lr_hyp']
         self.sampling_option = 'equal'

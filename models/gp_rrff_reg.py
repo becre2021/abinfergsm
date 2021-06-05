@@ -18,7 +18,9 @@ from torch.distributions import kl_divergence
 
 
 
-torch.set_default_tensor_type(torch.DoubleTensor)
+#torch.set_default_tensor_type(torch.DoubleTensor)
+torch.set_default_tensor_type(torch.FloatTensor)
+
 
 
 zitter = 1e-8
@@ -31,18 +33,19 @@ class ssgpr_rep_sm_reg(ssgpr_rep_sm):
                                                 kernel=kernel,
                                                 likelihood=likelihood,
                                                 device = device)
-        self.name = None
+        self.name = None        
         self.likelihood = Gaussian(variance= self.noise, device = device) if likelihood == None else likelihood        
         self._set_up_param(param_dict)
-        #self.spt_manager = spt_manager(total_spt = self.total_num_sample,  num_Q = self.num_Q ,rate= param_dict['weight_rate'])
         self.spt_manager = spt_manager_train(spt = num_sample_pt,  num_Q = self.num_Q ,rate= param_dict['weight_rate'])      
         self.num_samplept_list_at = None
         self.alpha = []
+        print('total spt:{}, spt:{}, Q:{} in setup model '.format(self.total_num_sample,self.num_samplept,self.num_Q))
 
+        
 
     def _set_up_param(self, param_dict):
         self.input_dim = param_dict['input_dim']
-        self.num_Q = param_dict['Num_Q']
+        self.num_Q = param_dict['num_Q']
         self.noise = param_dict['noise_err']
         self.lr_hyp = param_dict['lr_hyp']
         self.sampling_option = param_dict['sampling_option']
@@ -74,6 +77,7 @@ class ssgpr_rep_sm_reg(ssgpr_rep_sm):
         self.num_samplept = num_pt
         self.total_num_sample = self.num_samplept*self.weight.numel()
         self.spt_manager._set_num_spectralpt(num_pt,intrain) 
+        #print('total spt {}, spt {}'.format(self.total_num_sample,self.num_sampleplt))        
         return 
     
 
@@ -86,12 +90,18 @@ class ssgpr_rep_sm_reg(ssgpr_rep_sm):
                                                                            X = x,
                                                                            intrain = intrain)
                   
+#             assigned_spt, ratio =  self.spt_manager.calc_sptratio_given_X_v2( weight_param = self.weight.transform(),
+#                                                                               mu_param = self.mu.transform(),
+#                                                                               std_param = self.std.transform(),
+#                                                                               X = x,
+#                                                                               intrain = intrain)    
             outs = list(assigned_spt)
 
         elif self.sampling_option == 'naive_weight':
-            assign_rate = F.softmax(self.weight,dim = 0).squeeze()
-            assigned_spt = [max(int(ith),1) for ith in self.total_num_sample * assign_rate]
-            outs = assigned_spt
+            assigned_spt, ratio =  self.spt_manager.calc_sptratio_naive(weight_param_log = self.weight, 
+                                                                        intrain = intrain)
+            outs = list(assigned_spt)
+
         else:
             outs = [self.num_samplept for ith in range(self.num_Q)]
 
@@ -117,7 +127,7 @@ class ssgpr_rep_sm_reg(ssgpr_rep_sm):
         return  Phi.t().matmul(Phi) + (self.likelihood.variance.transform()**2 + zitter).expand(Phi.shape[1], Phi.shape[1]).diag().diag()
     
     
-    def _compute_nlml(self,batch_x,batch_y):
+    def _compute_nlml(self,batch_x,batch_y,intrain = True):
         """
         :param batch_x:
         :param batch_y:
@@ -128,22 +138,24 @@ class ssgpr_rep_sm_reg(ssgpr_rep_sm):
         num_input = batch_x.shape[0]
         loss = 0
         for j_th in range(self.num_batch):
-            Phi = self._compute_sm_basis(batch_x, intrain = True)
+            Phi = self._compute_sm_basis(batch_x, intrain = intrain)
             Approximate_gram = self._compute_gram_approximate(Phi)
             L = cholesky(Approximate_gram)
             Linv_PhiT = triangular_solve(Phi.t(), L ,upper=False)[0]           
             Linv_PhiT_y = Linv_PhiT.matmul(batch_y) 
-            
-            loss += (0.5 / self.likelihood.variance.transform()**2) * (batch_y.pow(2).sum() - Linv_PhiT_y.pow(2).sum())
-            loss += lt_log_determinant(L)
+
+            loss00 = (0.5 / self.likelihood.variance.transform()**2) * (batch_y.pow(2).sum() - Linv_PhiT_y.pow(2).sum())
+            loss01 = lt_log_determinant(L)
+            loss += loss00
+            loss += loss01            
             loss += (-self.total_num_sample)* (2* self.likelihood.variance)
             loss += 0.5 * num_input * (np.log(2*np.pi) + 2*self.likelihood.variance )
-
             return loss
             
             
     def compute_loss(self,batch_x,batch_y,kl_option ,current_iter = 1):
         loss = self._compute_nlml(batch_x,batch_y)
+        
         if kl_option == False:
             return (1 / self.num_batch) * loss
         else:
@@ -152,7 +164,7 @@ class ssgpr_rep_sm_reg(ssgpr_rep_sm):
     
     
     
-    def _predict(self, inputs_new, diag = True):
+    def _predict_single(self, inputs_new, diag = True):
         if isinstance(inputs_new, np.ndarray):
             inputs_new = Variable(torch.Tensor(inputs_new).to(self.device), requires_grad=False)
         
@@ -172,4 +184,14 @@ class ssgpr_rep_sm_reg(ssgpr_rep_sm):
             mean_var = (self.likelihood.variance.transform()**2)*(1 + Lt_inv_Phistar_t.matmul(Lt_inv_Phistar_t.t()))
         return mean_f, mean_var
 
+    
+    
+    def _predict(self, inputs_new , num_sample = 3, diag = True):
+        f_mean,f_var = 0,0
+        for i in range(num_sample):
+            i_f_mean,i_f_var = self._predict_single(inputs_new,diag)
+            f_mean += i_f_mean
+            f_var += i_f_var
+        
+        return f_mean/num_sample, f_var/num_sample
     

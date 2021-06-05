@@ -58,7 +58,7 @@ def _initialize_SMkernelhyp( x_train,y_train, setting_dict, random_seed, yesSM =
         thres_hold = 0.0
         freqs, psd = signal.welch(y_train.reshape(1, -1).squeeze(), fs=Fs, nperseg=len(y_train))
         psd = psd/psd.sum(0)
-        Num_Q = setting_dict['Num_Q']
+        Num_Q = setting_dict['num_Q']
 
 
         SMKernel_hyp = {}
@@ -107,40 +107,8 @@ def _initialize_SMkernelhyp( x_train,y_train, setting_dict, random_seed, yesSM =
 
 
 
-def _initialize_SMkernelhyp_uci_wilson( x_train,y_train, setting_dict, random_seed, yesSM = True, filename = None):
-    """
-    we consider initilaization method for High dimensional inputs
-    https://arxiv.org/pdf/1412.6493.pdf
-    """
 
-    print('intialization by wilson paper')
-    
-    np.random.seed(random_seed)
-    SMKernel_hyp = {}
-    N,D = list(x_train.shape)   
-    Num_Q = setting_dict['Num_Q']
-
-    print(N,D)
-    SMKernel_hyp['weight'] = (y_train.cpu().data.numpy().std()/Num_Q)*np.ones(Num_Q).reshape(-1, 1)   
-    # regression task for real dataset
-    max_d = x_train.cpu().data.numpy().max(axis=0)
-    min_d = x_train.cpu().data.numpy().min(axis=0)
-        
-    SMKernel_hyp['std'] = ((.01+ .04*np.random.rand(Num_Q,D))*(max_d - min_d + 1e-6))*np.sqrt(D)    
-    SMKernel_hyp['std_prior'] = .05*np.random.rand(Num_Q,D)*np.sqrt(D)    
-    SMKernel_hyp['mean'] = .5*np.random.rand(Num_Q ,D)
-    SMKernel_hyp['mean_prior'] = .05*np.random.rand(Num_Q,D)  
-
-    SMKernel_hyp['noise_variance'] = 1.0  # real v2
-    SMKernel_hyp['variance'] = 1.0  # real v2    
-    SMKernel_hyp['length_scale'] = SMKernel_hyp['std'].mean(axis =0)        
-    setting_dict['hypparam'] = SMKernel_hyp
-    return setting_dict
-
-
-
-
-def _initialize_SMkernelhyp_uci( x_train,y_train, setting_dict, random_seed, yesSM = True, filename = None):
+def _initialize_SMkernelhyp_uci( x_train,y_train, setting_dict, random_seed, yesSM = True, filename = None, model_name = None):
     """
     we consider initilaization method for High dimensional inputs empirically    
     """
@@ -149,19 +117,30 @@ def _initialize_SMkernelhyp_uci( x_train,y_train, setting_dict, random_seed, yes
     np.random.seed(random_seed)
     SMKernel_hyp = {}
     N,D = list(x_train.shape)   
-    Num_Q = setting_dict['Num_Q']
+    num_Q = setting_dict['num_Q']
     #print(N,D)
 
-    SMKernel_hyp['weight'] = np.ones(Num_Q).reshape(-1, 1)
-    SMKernel_hyp['std'] = 0.01 + 0.09*np.random.rand(Num_Q ,D) # real
-    SMKernel_hyp['std_prior'] = 0.05*np.random.rand(Num_Q ,D) # real
-    SMKernel_hyp['mean'] = .25*np.random.rand(Num_Q ,D) #regression task
-    SMKernel_hyp['mean_prior'] = .05*np.random.rand(Num_Q ,D)    
+
+    SMKernel_hyp['weight'] = np.ones(num_Q).reshape(-1, 1)
+    if model_name in ['vssgp','weight_reg', 'weight_reg_nat', 'equal_reg', 'equal_reg_nat']:
+
+        SMKernel_hyp['std'] = 0.05 + 0.45*np.random.rand(num_Q ,D) # real
+        SMKernel_hyp['std_prior'] = 0.05*np.random.rand(num_Q ,D) # real
+        SMKernel_hyp['mean'] = .25*np.random.rand(num_Q ,D) #regression task
+        SMKernel_hyp['mean_prior'] = .05*np.random.rand(num_Q ,D)            
+        
+    else: #['vfegp','vssgp']
+        SMKernel_hyp['std'] = 0.05 + 0.45*np.random.rand(num_Q ,D) # real
+        SMKernel_hyp['std_prior'] = 0.5*np.random.rand(num_Q ,D) # real
+        SMKernel_hyp['mean'] = .25*np.random.rand(num_Q ,D) #regression task
+        SMKernel_hyp['mean_prior'] = .05*np.random.rand(num_Q ,D)    
 
     SMKernel_hyp['noise_variance'] = 1.0  # real v2
     SMKernel_hyp['variance'] = 1.0  # real v2    
-    SMKernel_hyp['length_scale'] = SMKernel_hyp['std'].mean(axis =0)        
+    
+    SMKernel_hyp['length_scale'] = 0.5 + 0.5*np.random.rand(D) # real    
     setting_dict['hypparam'] = SMKernel_hyp
+
     return setting_dict
 
 
@@ -326,6 +305,18 @@ def _make_gpmodel(model_name,setting_dict,device):
         model.name = model_name
         return model
 
+    if model_name == 'naiveweight_reg':
+        num_sample_pt = setting_dict['num_sample_pt']
+        num_batch = setting_dict['num_batch']
+        setting_dict['sampling_option'] = 'naive_weight'
+        setting_dict['yes_nat'] = False
+
+        model = ssgpr_rep_sm_reg(num_batch=num_batch,
+                                 num_sample_pt=num_sample_pt,
+                                 param_dict=setting_dict,
+                                 device=device)
+        model.name = model_name
+        return model
 
     if model_name == 'weight_reg':
         num_sample_pt = setting_dict['num_sample_pt']

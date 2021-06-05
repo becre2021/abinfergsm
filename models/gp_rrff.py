@@ -11,7 +11,8 @@ from torch import nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-torch.set_default_tensor_type(torch.DoubleTensor)
+#torch.set_default_tensor_type(torch.DoubleTensor)
+torch.set_default_tensor_type(torch.FloatTensor)
 
 
 zitter = 1e-8
@@ -27,7 +28,7 @@ class ssgpr_rep_sm(nn.Module):
         self._set_up_param(param_dict)
         self.num_batch = num_batch
         self.num_samplept = num_sample_pt
-        self.total_num_sample = self.num_samplept*self.weight.numel()
+        self.total_num_sample = self.num_samplept*self.num_Q
         self.spt_manager = spt_manager_train(spt = num_sample_pt,  num_Q = self.num_Q ,rate= param_dict['weight_rate'])              
         self.likelihood = Gaussian(variance= self.noise, device = device) if likelihood == None else likelihood
         self.num_samplept_list_at = None
@@ -59,7 +60,7 @@ class ssgpr_rep_sm(nn.Module):
 
     def _set_up_param(self, param_dict):
         self.input_dim = param_dict['input_dim']
-        self.num_Q = param_dict['Num_Q']
+        self.num_Q = param_dict['num_Q']
         self.lr_hyp = param_dict['lr_hyp']
         self.inputs_dims = self.mu.shape[1]
         self.sampling_option = param_dict['sampling_option']
@@ -96,10 +97,11 @@ class ssgpr_rep_sm(nn.Module):
     
 
 
-    def _set_num_spectralpt(self,num_pt):
+    def _set_num_spectralpt(self,num_pt,intrain =True):
         self.num_samplept = num_pt
         self.total_num_sample = self.num_samplept*self.weight.numel()
-        self.spt_manager._set_num_spectralpt(num_pt) 
+        self.spt_manager._set_num_spectralpt(num_pt,intrain =True) 
+        #print('total spt:{}, spt:{}'.format(self.total_num_sample,self.num_sampleplt))
         return 
     
 
@@ -131,16 +133,16 @@ class ssgpr_rep_sm(nn.Module):
 
 
 
-    def _compute_gaussian_basis(self, x, xstar=None):
-        sampled_spectral_pt = self._sampling_gaussian(self.mu.transform(),self.std.transform(),self.num_sample_pt)  # self.num_sample x dim
-        xdotspectral = x.matmul(sampled_spectral_pt.t())
-        Phi = torch.cat([xdotspectral.cos(), xdotspectral.sin()], 1).to(self.device)
-        if xstar is None:
-            return Phi
-        else:
-            xstardotspectral = xstar.matmul(sampled_spectral_pt.t())
-            Phi_star = torch.cat([xstardotspectral.cos(), xstardotspectral.sin()], 1).to(self.device)
-            return Phi, Phi_star
+#     def _compute_gaussian_basis(self, x, xstar=None):
+#         sampled_spectral_pt = self._sampling_gaussian(self.mu.transform(),self.std.transform(),self.num_sample_pt)  # self.num_sample x dim
+#         xdotspectral = x.matmul(sampled_spectral_pt.t())
+#         Phi = torch.cat([xdotspectral.cos(), xdotspectral.sin()], 1).to(self.device)
+#         if xstar is None:
+#             return Phi
+#         else:
+#             xstardotspectral = xstar.matmul(sampled_spectral_pt.t())
+#             Phi_star = torch.cat([xstardotspectral.cos(), xstardotspectral.sin()], 1).to(self.device)
+#             return Phi, Phi_star
 
 
 
@@ -154,46 +156,74 @@ class ssgpr_rep_sm(nn.Module):
 
         self._assign_num_spectralpt(x,intrain)                       
         num_samplept_list = self.num_samplept_list_at 
+        
+        
+#         for i_th in range(self.weight.numel()):
+#             ith_allocated_sample = num_samplept_list[i_th]
+#             sampled_spectal_pt = self._sampling_gaussian(mu = self.mu.transform()[i_th],std = self.std.transform()[i_th],num_sample = ith_allocated_sample)  # self.num_sample x dim
+#             if xstar is not None:
+#                 current_sampled_spectral_list.append(sampled_spectal_pt)
+#             xdotspectral = (2 * np.pi) * x.matmul(sampled_spectal_pt.t())
+#             Phi_i_th = (current_pi[i_th] / ith_allocated_sample).sqrt() * torch.cat([xdotspectral.cos(), xdotspectral.sin()], 1).to(self.device)
+#             multiple_Phi.append(Phi_i_th)
 
+#         if xstar is None:
+#             return torch.cat(multiple_Phi, 1)
+#         else:
+#             multiple_Phi_star = []
+#             for i_th, current_sampled in enumerate(current_sampled_spectral_list):
+#                 xstardotspectral = (2 * np.pi) * xstar.matmul(current_sampled.t())
+#                 Phistar_i_th = (current_pi[i_th] / len(current_sampled)).sqrt() * torch.cat([xstardotspectral.cos(), xstardotspectral.sin()],1).to(self.device)
+#                 multiple_Phi_star.append(Phistar_i_th)
+#             return torch.cat(multiple_Phi, 1), torch.cat(multiple_Phi_star, 1)
+
+
+        #-------------------------------------------------------------------------
+        #new        
         for i_th in range(self.weight.numel()):
-            ith_allocated_sample = num_samplept_list[i_th]
-            sampled_spectal_pt = self._sampling_gaussian(mu = self.mu.transform()[i_th],std = self.std.transform()[i_th],num_sample = ith_allocated_sample)  # self.num_sample x dim
-
-            if xstar is not None:
-                current_sampled_spectral_list.append(sampled_spectal_pt)
-            xdotspectral = (2 * np.pi) * x.matmul(sampled_spectal_pt.t())
-
-            Phi_i_th = (current_pi[i_th] / ith_allocated_sample).sqrt() * torch.cat([xdotspectral.cos(), xdotspectral.sin()], 1).to(self.device)
-            multiple_Phi.append(Phi_i_th)
+            if num_samplept_list[i_th] > 0 :
+                ith_allocated_sample = num_samplept_list[i_th]
+                sampled_spectal_pt = self._sampling_gaussian(mu = self.mu.transform()[i_th],std = self.std.transform()[i_th],num_sample = ith_allocated_sample)  # self.num_sample x dim
+                if xstar is not None:
+                    current_sampled_spectral_list.append(sampled_spectal_pt)
+                xdotspectral = (2 * np.pi) * x.matmul(sampled_spectal_pt.t())
+                Phi_i_th = (current_pi[i_th] / ith_allocated_sample).sqrt() * torch.cat([xdotspectral.cos(), xdotspectral.sin()], 1).to(self.device)
+                multiple_Phi.append(Phi_i_th)
+            else:
+                pass
 
         if xstar is None:
             return torch.cat(multiple_Phi, 1)
         else:
             multiple_Phi_star = []
             for i_th, current_sampled in enumerate(current_sampled_spectral_list):
-                xstardotspectral = (2 * np.pi) * xstar.matmul(current_sampled.t())
-                Phistar_i_th = (current_pi[i_th] / len(current_sampled)).sqrt() * torch.cat([xstardotspectral.cos(), xstardotspectral.sin()],1).to(self.device)
-                multiple_Phi_star.append(Phistar_i_th)
+                if num_samplept_list[i_th] > 0 :                
+                    xstardotspectral = (2 * np.pi) * xstar.matmul(current_sampled.t())
+                    Phistar_i_th = (current_pi[i_th] / len(current_sampled)).sqrt() * torch.cat([xstardotspectral.cos(), xstardotspectral.sin()],1).to(self.device)
+                    multiple_Phi_star.append(Phistar_i_th)
             return torch.cat(multiple_Phi, 1), torch.cat(multiple_Phi_star, 1)
 
-
+        
     def _compute_gram_approximate(self, Phi):
         return  Phi.t().matmul(Phi) + (self.likelihood.variance.transform()**2 + zitter).expand(Phi.shape[1], Phi.shape[1]).diag().diag()
 
 
 
-    def _compute_kernel_sm_approximate(self, x , normalized_option = False, usepairwise = False):
-        if usepairwise is False:
-            Phi_list = self._compute_sm_basis(x)
-        else:
-            Phi_list = self._compute_sm_basis(x, usepairwise = usepairwise)
+#    def _compute_kernel_sm_approximate(self, x , normalized_option = False, usepairwise = False ,intrain = True):
+    def _compute_kernel_sm_approximate(self, x , intrain = True):
+#         if usepairwise is False:
+#             Phi_list = self._compute_sm_basis(x,intrain = intrain)
+#         else:
+#             Phi_list = self._compute_sm_basis(x, usepairwise = usepairwise)
 
-
+        Phi_list = self._compute_sm_basis(x, intrain = intrain)
         kernel_output =  Phi_list.matmul(Phi_list.t())
-        if normalized_option == True:
-            return kernel_output/kernel_output[0,0]
-        else:
-            return kernel_output
+        
+#         if normalized_option == True:
+#             return kernel_output/kernel_output[0,0]
+#         else:
+#             return kernel_output
+        return kernel_output
 
 
 

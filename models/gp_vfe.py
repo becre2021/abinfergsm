@@ -17,6 +17,12 @@ from torch.autograd import Variable
 import numpy as np
 
 
+
+#torch.set_default_tensor_type(torch.DoubleTensor)
+torch.set_default_tensor_type(torch.FloatTensor)
+
+
+
 jitter = 1e-8
 class gp_vfe(gpr):
 

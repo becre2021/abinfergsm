@@ -3,6 +3,7 @@
 We provide the implementation and experiment results for the paper Efficient Approximate Inference for Stationary Kernel on Frequency Domain.
 
 
+ 
 ## Description
 
 ### Methods
@@ -13,11 +14,11 @@ We provide the implementation and experiment results for the paper Efficient App
 
 ### Experiments
 
-* main_exp1 in section 5-1.ipynb : kernel approximation experiemnt to validate sampling strategy (expeiriment section 5.1)
-* main_exp2-1 in section 5-2.ipynb, main_exp2-2 in section 5-2.ipynb : kernel approximation in training (experiment section 5.2)
-* main_ablationstudy_exp.py : ablation study (experiment section 5.3)
-* main_uci_regression.py, main_uci_regression_batch.py : a large-scale and high-dimensional UCI dataset regression (experiment section 5.4)
-* supplementary SM kernel Recovery by SVSS.ipynb : SM kernel Recovery conducted in [experiment section 5.1](https://arxiv.org/pdf/1910.13565.pdf)
+* exp1_main_section5-1.ipynb, exp2_main_section5-1.ipynb : validation of the weight sampling that reduces the error of ELBO estimator (main-expeiriment section 5.1)
+* main_ablationstudy.py : ablation study for SVSS (main-experiment section 5.2)
+* main_uci_regression.py, main_uci_regression_batch.py : a large-scale and high-dimensional UCI dataset regression (main-experiment section 5.3)
+* exp1_appendix.ipynb : validation of the scalable weight sampling (supplementary-experiment section 4.1)
+* SM kernel Recovery by SVSS-Ws.ipynb : SM kernel Recovery conducted in [experiment section 5.1](https://arxiv.org/pdf/1910.13565.pdf)
 
 
 ## Requirements

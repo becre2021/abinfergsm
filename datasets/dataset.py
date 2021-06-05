@@ -11,7 +11,9 @@ from sklearn.model_selection import train_test_split
 
 
 
-torch.set_default_tensor_type("torch.DoubleTensor")
+#torch.set_default_tensor_type(torch.DoubleTensor)
+torch.set_default_tensor_type(torch.FloatTensor)
+
 
 
 def _load_collection_real(filename,cuda_option):
@@ -86,8 +88,8 @@ def _load_collection_syn(filename,cuda_option):
 
 
     elif filename in ['SM_Q5_exp1_unequal_v3','SM_Q2_exp1'] :
-        Dataset = sio.loadmat('./../datasets/synthetic/' + filename + '.mat')
-        #Dataset = sio.loadmat('./datasets/synthetic/' + filename + '.mat')        
+        #Dataset = sio.loadmat('./../datasets/synthetic/' + filename + '.mat')
+        Dataset = sio.loadmat('./datasets/synthetic/' + filename + '.mat')        
         x_train, x_test, y_train, y_test , x_full, y_full = Dataset['x_train'], Dataset['x_test'],Dataset['y_train'], Dataset['y_test'],Dataset['x_full'], Dataset['y_full']
         x_train, x_test, y_train, y_test, x_full,y_full = np.float64(x_train), np.float64(x_test) , np.float64(y_train), np.float64(y_test), np.float64(x_full), np.float64(y_full)
         return torch.from_numpy(x_train).to(device),torch.from_numpy(x_test).to(device),torch.from_numpy(x_full).to(device),\

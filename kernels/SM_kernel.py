@@ -6,7 +6,7 @@ from models_utility.param_gp import Param
 
 
 class SM(StationaryKernel):
-    def __init__(self,weight,mu,std,device):
+    def __init__(self,weight,mu,std,device=True):
         super(SM,self).__init__(device)
         self.device = torch.device("cuda") if device else torch.device('cpu')
         self._assign_SM_param(weight,mu,std)

@@ -9,6 +9,13 @@ from models_utility.function_gp import cholesky, lt_log_determinant
 from models_utility.likelihoods import Gaussian
 
 
+
+#torch.set_default_tensor_type(torch.DoubleTensor)
+torch.set_default_tensor_type(torch.FloatTensor)
+
+
+
+
 pi = math.pi
 class vssgp(nn.Module):
     def __init__(self, train_X, train_Y, setting_dict, device):

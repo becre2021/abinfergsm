@@ -10,10 +10,12 @@ import pickle
 import matplotlib.pyplot as plt
 import datetime
 
-from datasets.dataset import _load_collection_uci_data, _load_collection_uci_data_batch, _traintestsplit, _load_collection_bbq_data
+from datasets.dataset import _load_collection_uci_data, _load_collection_uci_data_batch, _traintestsplit, \
+    _load_collection_bbq_data
 from datasets.dataset_wilson_uci import _load_ucidataset_wilson
 from utility.eval_metric import _evaluate_metric
-from models_utility.construct_models import _initialize_SMkernelhyp_uci, _make_gpmodel_v2
+from models_utility.construct_models import _initialize_SMkernelhyp_uci, _initialize_SMkernelhyp_uci_wilson, \
+    _make_gpmodel_v2
 from models_utility.personalized_adam import Adam_variation
 
 device = True
@@ -22,6 +24,8 @@ print(torch.__version__)
 print(torch.version.cuda)
 
 save_format = '.pickle'
+# pickle_savepath = './jupyters/result_pickle/'
+# pickle_savepath = './jupyters/result_pickle_rebuttal/'
 pickle_savepath = './jupyters/result_pickle_NeurIPS21/'
 
 # save_exp_path = './exp' + '/'
@@ -54,6 +58,9 @@ def load_model_param(temp_model, saved_param):
     return temp_model
 
 
+# CUDA_VISIBE_DEVICES=3 python3 .py --filname --numQ --numspt --numbatch 1 --ratesamplespt .05 --lrhyp .005 --numrepexp 5
+
+# datafilename_list = ['Concrete', 'skillcraft', 'parkinsons', 'kin8nm', 'elevators']
 parser = argparse.ArgumentParser(description='data_file_load')
 parser.add_argument('--filename', type=str, default='parkinsons')
 parser.add_argument('--numQ', type=int, default=4)
@@ -69,7 +76,7 @@ parser.add_argument('--randomseed', type=int, default=1111)
 parser.add_argument('--kloption', type=bool, default=True)
 parser.add_argument('--datanormal', type=bool, default=True)
 parser.add_argument('--evalperiod', type=int, default=50)
-parser.add_argument('--submodeltest', default=False, action='store_true')
+
 
 args = parser.parse_args()
 args.numtotalspt = args.numQ * args.numspt
@@ -93,10 +100,7 @@ print('expinfo')
 print(expinfo)
 
 
-comparison_model_name_list = ['gpvferbf','gpvfe','rff','vssgp','equal_reg','equal_reg_nat','weight_reg','weight_reg_nat']
-
-if args.submodeltest:
-    comparison_model_name_list = ['equal_reg','equal_reg_nat','weight_reg','weight_reg_nat']
+comparison_model_name_list = ['rff','rffrp','equal_reg','equal_reg_nat','weight_reg','weight_reg_nat']
 
 
 
@@ -141,7 +145,6 @@ for jth_rep in range(setting_dict['num_rep']):
     print('')
 
     if args.filename in ['Concrete']:
-        # x_train, x_test, y_train, y_test = _load_collection_bbq_data(args.filename,cuda_option=device)
         x_train, x_val, x_test, y_train, y_val, y_test = _load_collection_bbq_data(args.filename, cuda_option=device)
 
     else:
@@ -194,7 +197,7 @@ for jth_rep in range(setting_dict['num_rep']):
                 print('%d init loss: %.4f \n' % (ith_try, losstotal.cpu().data.numpy()))
             except:
                 losstotal = torch.from_numpy(np.asarray(1e32)).cuda()
-                with open('./exp_NeurIPS21/error_message/main3_' + str(args.filename) + '_regression_task_Error_message_lr' + str(args.lrhyp) + '.txt','a') as f:
+                with open('./exp_NeurIPS21_Ablation/error_message/main3_' + str(args.filename) + '_regression_task_Error_message_lr' + str(args.lrhyp) + '.txt','a') as f:
                     f.write('initialization error model : {} in {} th experiment \n'.format(save_filename, i))
                     f.write('{}'.format(temp_model.name))
                     f.write('\n\n')
@@ -232,7 +235,6 @@ for jth_rep in range(setting_dict['num_rep']):
                 optimizer.zero_grad()
                 ith_tic = time.time()
                 ith_loss = ith_model.compute_loss(batch_x=x_train, batch_y=y_train, kl_option=setting_dict['kl_option'])
-
                 ith_loss.backward()
                 optimizer.step()
                 ith_toc = time.time()
@@ -412,14 +414,16 @@ print('filename : {0}_static'.format(save_filename))
 print('\n' * 3)
 
 
-with open('./exp_NeurIPS21/main3_' + str(args.filename) + '_regression_task_revision_lr'+ str(args.lrhyp)+'.txt', 'a') as f:
+
+with open('./exp_NeurIPS21_Ablation/main3_' + str(args.filename) + '_regression_task_revision_lr'+ str(args.lrhyp)+'.txt', 'a') as f:
     f.write('#' + '-' * 100 + '\n')
     f.write('%s \n' % (save_filename))
     
     
-    f.write('\n')    
+    #f.write('\n')    
     for ith_key in ['rmse', 'ermse', 'mnll', 'emnll', 'time']:
         # f.write('%s %s \n' % (ith_key + '_mean', ith_key + '_std'))
+        f.write('model|,')        
         for jjth_key in result_static[ith_key + '_mean']:
             f.write('{},'.format(jjth_key ))
         f.write('\n')
@@ -436,6 +440,9 @@ with open('./exp_NeurIPS21/main3_' + str(args.filename) + '_regression_task_revi
         f.write('\n')
 
     f.write('\n\n')
+
+
+
 
 
 

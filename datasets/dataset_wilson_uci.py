@@ -15,6 +15,13 @@ sys.path.append('./../')
 
 
 
+#torch.set_default_tensor_type(torch.DoubleTensor)
+torch.set_default_tensor_type(torch.FloatTensor)
+
+
+
+
+
 data_base_path = './datasets/'
 
 def load_dataset(name: str):
